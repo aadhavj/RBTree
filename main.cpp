@@ -13,7 +13,13 @@ struct node{
 };
 
 void printTree(node*, int);
-void addNode(node* &, node* &);
+void addNode(node* &, node* &, node*);
+void swapColorScheme(node* &, node* &);
+void update(node*, node*);
+node* getUncle(node*);
+node* getGrandfather(node*);
+node* rotateLeft(node*);
+//node* rotateRight(node*);
 
 int main(){
 
@@ -38,7 +44,7 @@ int main(){
 			node* addMe = new node();
 			addMe->value = value;
 
-			addNode(root, addMe);
+			addNode(root, addMe, root);
 		}
 		else if (command == "READ"){ //Adds file nodes to tree
 			//Adds file
@@ -57,7 +63,7 @@ int main(){
 					cout << "Adding " << number << " to the tree." << endl;
 					node* addMe = new node();
 					addMe->value = number;
-					addNode(root, addMe);
+					addNode(root, addMe, root);
 			
 				}
 				numFile.close();
@@ -103,35 +109,140 @@ void printTree(node* current, int depth){
 	}
 }
 
-void addNode(node* &root, node* &newNode){
-	if (root == nullptr){
-		newNode->color = 'B';
-		root = newNode;
+node* getGrandfather(node* curr){
+	return curr->parent->parent;
+}
+node* getUncle(node* curr){
+	node* grandfather = getGrandfather(curr);
+	if (grandfather){
+		if (curr->parent == grandfather->left){
+			return grandfather->right;
+		}
+		else{
+			return grandfather->left;
+		}
 	}
 	else{
-		node* current = root;
+		return nullptr;
+	}
+}
+
+node* rotateLeft(node* current){
+	node* right = current->right;
+	node* rightLeft = right->left;
+	right->left = current;
+	current->right = rightLeft;
+	current->parent = right;
+	if (rightLeft){
+		rightLeft->parent = current;
+	}
+	return right;
+}
+
+node* rotateRight(node* current){
+	node* left = current->left;
+	node* leftRight = left->right;
+	left->right = current;
+	current->left = leftRight;
+	current->parent = left;
+	if (leftRight){
+		leftRight->parent = current;
+	}
+	return left;
+}
+
+
+void swapColorScheme(node* &root, node* &curr){
+	node* parent = curr->parent;
+	node* uncle = getUncle(curr);
+	if (parent != root){
+		if (curr->color == 'B'){
+			parent->color = 'R';
+			if (uncle){
+				uncle->color = 'R';
+			}
+		}
+		else{
+			parent->color = 'B';
+			if (uncle){
+				uncle->color = 'B';
+			}
+
+		}
+		swapColorScheme(root, parent);
+	}
+}
+
+void update(node* root, node* addedNode){
+	if (addedNode->parent->color == 'R'){
+		node* uncle = getUncle(addedNode);
+
+		if (uncle && uncle->color == 'R'){ //Uncle red case
+			swapColorScheme(root, addedNode);
+		}
+		else if (uncle && uncle->color == 'B'){ //Uncle black case
+			node* grandparent = getGrandfather(addedNode);
+			node* parent = addedNode->parent;
+			bool leftParent = addedNode->parent->value <= grandparent->value; 
+			bool leftChild = addedNode->value <= parent->value;
+			if (leftParent && leftChild){ // LL case
+				rotateRight(grandparent);
+				char grandColor = grandparent->color;
+				grandparent->color = parent->color;
+				parent->color = grandColor;
+			}
+			else if (leftParent && !leftChild){ //LR
+				rotateLeft(parent);
+				rotateRight(grandparent);
+				char grandColor = grandparent->color;
+				grandparent->color = parent->color;
+				parent->color = grandColor;
+			}
+			else if (!leftParent && !leftChild){ //RR
+				rotateLeft(grandparent);
+				char grandColor = grandparent->color;
+				grandparent->color = parent->color;
+				parent->color = grandColor;
+			}
+			else if (!leftParent && leftChild){ //RL
+				rotateRight(parent);
+				rotateLeft(grandparent);
+				char grandColor = grandparent->color;
+				grandparent->color = parent->color;
+				parent->color = grandColor;
+			}
+		}
+		else{
+			cout << "PROPERTY VIOLATION" << endl;
+		}
+	}
+	
+}
+void addNode(node* &curr, node* &newNode, node* root){
+	if (curr == nullptr){
+		newNode->color = 'B';
+		curr = newNode;
+	}
+	else{
+		node* current = curr;
 		if (newNode->value <= current->value){
 			if (current->left == nullptr){
 				current->left = newNode;
 				newNode->parent = current;
-				if (newNode->parent->color == 'R'){
-					cout << "PROPERTY VIOLATION" << endl;
-				}
+				update(root, newNode);
 			}
 			else{
-				addNode(current->left, newNode);
+				addNode(current->left, newNode, root);
 			}
 		}
 		else{
 			if (current->right == nullptr){
 				current->right = newNode;
 				newNode->parent = current;
-				if (newNode->parent->color == 'R'){
-					cout << "PROPERTY VIOLATION" << endl;
-				}
+				update(root, newNode);
 			}
 			else{
-				addNode(current->right, newNode);
+				addNode(current->right, newNode, root);
 			}
 		}
 	}
