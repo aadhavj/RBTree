@@ -13,13 +13,14 @@ struct node{
 };
 
 void printTree(node*, int);
-void addNode(node* &, node* &, node*);
+void addNode(node* &, node* &, node*&);
 void swapColorScheme(node* &, node* &);
-void update(node*, node*);
+void update(node*&, node*);
 node* getUncle(node*);
 node* getGrandfather(node*);
+node* getRoot(node*);
 node* rotateLeft(node*);
-//node* rotateRight(node*);
+node* rotateRight(node*);
 
 int main(){
 
@@ -127,16 +128,35 @@ node* getUncle(node* curr){
 	}
 }
 
+node* getRoot(node* current){
+	if (current->parent != nullptr){
+		return getRoot(current->parent);
+	}
+	else{
+		return current;
+	}
+}
+
 node* rotateLeft(node* current){
 	node* right = current->right;
 	node* rightLeft = right->left;
 	right->left = current;
 	current->right = rightLeft;
+	right->parent = current->parent;
+	if (current->parent){
+		if (current->value <= current->parent->value){
+			current->parent->left = right;
+		}
+		else{
+			current->parent->right = right;
+		}
+	}
 	current->parent = right;
 	if (rightLeft){
 		rightLeft->parent = current;
 	}
-	return right;
+	return getRoot(right);
+	//return right;
 }
 
 node* rotateRight(node* current){
@@ -144,11 +164,22 @@ node* rotateRight(node* current){
 	node* leftRight = left->right;
 	left->right = current;
 	current->left = leftRight;
+	left->parent = current->parent; //added
+	if (current->parent){
+		if (current->value <= current->parent->value){
+			current->parent->left = left;
+		}
+		else{
+			current->parent->right = left;
+		}
+	}
+	//added
 	current->parent = left;
 	if (leftRight){
 		leftRight->parent = current;
 	}
-	return left;
+	return getRoot(left); //added
+	//return left;
 }
 
 
@@ -173,52 +204,58 @@ void swapColorScheme(node* &root, node* &curr){
 	}
 }
 
-void update(node* root, node* addedNode){
+void update(node* &root, node* addedNode){
 	if (addedNode->parent->color == 'R'){
 		node* uncle = getUncle(addedNode);
 
-		if (uncle && uncle->color == 'R'){ //Uncle red case
+		if (uncle != nullptr && uncle->color == 'R'){ //Uncle red case
 			swapColorScheme(root, addedNode);
 		}
-		else if (uncle && uncle->color == 'B'){ //Uncle black case
+		else if ((uncle != nullptr && uncle->color == 'B') or uncle == nullptr){ //Uncle black case
+			cout << "UNCLE BLACK CASE" << endl;
 			node* grandparent = getGrandfather(addedNode);
 			node* parent = addedNode->parent;
 			bool leftParent = addedNode->parent->value <= grandparent->value; 
 			bool leftChild = addedNode->value <= parent->value;
 			if (leftParent && leftChild){ // LL case
-				rotateRight(grandparent);
+				cout << "LL Case" << endl;
+				root = rotateRight(grandparent); //changed
 				char grandColor = grandparent->color;
 				grandparent->color = parent->color;
 				parent->color = grandColor;
 			}
 			else if (leftParent && !leftChild){ //LR
-				rotateLeft(parent);
-				rotateRight(grandparent);
+				cout << "LR case" << endl;
+				root = rotateLeft(parent);
+				root = rotateRight(grandparent);
 				char grandColor = grandparent->color;
 				grandparent->color = parent->color;
 				parent->color = grandColor;
 			}
 			else if (!leftParent && !leftChild){ //RR
-				rotateLeft(grandparent);
+				cout << "RR case" << endl;
+				root = rotateLeft(grandparent);
 				char grandColor = grandparent->color;
 				grandparent->color = parent->color;
 				parent->color = grandColor;
 			}
 			else if (!leftParent && leftChild){ //RL
-				rotateRight(parent);
-				rotateLeft(grandparent);
+				cout << "RL case" << endl;
+				root = rotateRight(parent);
+				root = rotateLeft(grandparent);
 				char grandColor = grandparent->color;
 				grandparent->color = parent->color;
 				parent->color = grandColor;
 			}
 		}
 		else{
+			cout << addedNode->parent->value << " has no sibling." << endl;
 			cout << "PROPERTY VIOLATION" << endl;
 		}
 	}
 	
 }
-void addNode(node* &curr, node* &newNode, node* root){
+void addNode(node* &curr, node* &newNode, node* &root){
 	if (curr == nullptr){
 		newNode->color = 'B';
 		curr = newNode;
