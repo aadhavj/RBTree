@@ -13,8 +13,7 @@ struct node{
 };
 
 void printTree(node*, int);
-void addNode(node* &, node* &, node*&);
-void swapColorScheme(node* &, node* &);
+void addNode(node* &, node* &);
 void update(node*&, node*);
 node* getUncle(node*);
 node* getGrandfather(node*);
@@ -45,7 +44,7 @@ int main(){
 			node* addMe = new node();
 			addMe->value = value;
 
-			addNode(root, addMe, root);
+			addNode(root, addMe);
 		}
 		else if (command == "READ"){ //Adds file nodes to tree
 			//Adds file
@@ -61,10 +60,9 @@ int main(){
 			else{
 				int number;
 				while (numFile >> number) {
-					cout << "Adding " << number << " to the tree." << endl;
 					node* addMe = new node();
 					addMe->value = number;
-					addNode(root, addMe, root);
+					addNode(root, addMe);
 			
 				}
 				numFile.close();
@@ -138,11 +136,17 @@ node* getRoot(node* current){
 }
 
 node* rotateLeft(node* current){
+
+	//Define right and rightLeft nodes for this case
 	node* right = current->right;
 	node* rightLeft = right->left;
+
+	//Relink for left rotation
 	right->left = current;
 	current->right = rightLeft;
 	right->parent = current->parent;
+
+	//If not root, link to parent appropriately
 	if (current->parent){
 		if (current->value <= current->parent->value){
 			current->parent->left = right;
@@ -152,19 +156,28 @@ node* rotateLeft(node* current){
 		}
 	}
 	current->parent = right;
+
+	//Links final rightLeft node
 	if (rightLeft){
 		rightLeft->parent = current;
 	}
+
+	//Return root (root may be changed so passed by ref)
 	return getRoot(right);
-	//return right;
 }
 
 node* rotateRight(node* current){
+
+	//Define left and leftRight nodes for this case
 	node* left = current->left;
 	node* leftRight = left->right;
+
+	//Relink for right rotation
 	left->right = current;
 	current->left = leftRight;
-	left->parent = current->parent; //added
+	left->parent = current->parent;
+
+	//If not root, link to parent appropriately
 	if (current->parent){
 		if (current->value <= current->parent->value){
 			current->parent->left = left;
@@ -173,89 +186,77 @@ node* rotateRight(node* current){
 			current->parent->right = left;
 		}
 	}
-	//added
 	current->parent = left;
+
+	//Links final leftRight node
 	if (leftRight){
 		leftRight->parent = current;
 	}
-	return getRoot(left); //added
-	//return left;
-}
 
-
-void swapColorScheme(node* &root, node* &curr){
-	node* parent = curr->parent;
-	node* uncle = getUncle(curr);
-	if (parent != root){
-		if (curr->color == 'B'){
-			parent->color = 'R';
-			if (uncle){
-				uncle->color = 'R';
-			}
-		}
-		else{
-			parent->color = 'B';
-			if (uncle){
-				uncle->color = 'B';
-			}
-
-		}
-		swapColorScheme(root, parent);
-	}
+	//Return root (root may be changed so passed by ref)
+	return getRoot(left);
 }
 
 void update(node* &root, node* addedNode){
+
+	//Base cases
+	if (addedNode == root) {root->color = 'B'; return;}
+	if (addedNode->parent->parent == nullptr){return;}
+
+	//Recursive case
 	if (addedNode->parent->color == 'R'){
 		node* uncle = getUncle(addedNode);
 
-		if (uncle != nullptr && uncle->color == 'R'){ //Uncle red case
-			swapColorScheme(root, addedNode);
+		//Uncle is red case
+		if (uncle && uncle->color == 'R'){
+			uncle->color = 'B';
+			addedNode->parent->color = 'B';
+			addedNode->parent->parent->color = 'R';
+			update(root, addedNode->parent->parent);
 		}
-		else if ((uncle != nullptr && uncle->color == 'B') or uncle == nullptr){ //Uncle black case
-			cout << "UNCLE BLACK CASE" << endl;
+
+		//Uncle is black case
+		else if ((uncle && uncle->color == 'B') or uncle == nullptr){
+			
+			//Define parent and grandparent
 			node* grandparent = getGrandfather(addedNode);
 			node* parent = addedNode->parent;
+
+			//Define bools to figure out case
 			bool leftParent = addedNode->parent->value <= grandparent->value; 
 			bool leftChild = addedNode->value <= parent->value;
+
+			//Rotate in accordance with each case
 			if (leftParent && leftChild){ // LL case
-				cout << "LL Case" << endl;
-				root = rotateRight(grandparent); //changed
-				char grandColor = grandparent->color;
-				grandparent->color = parent->color;
-				parent->color = grandColor;
+				root = rotateRight(grandparent);
 			}
 			else if (leftParent && !leftChild){ //LR
-				cout << "LR case" << endl;
 				root = rotateLeft(parent);
 				root = rotateRight(grandparent);
-				char grandColor = grandparent->color;
-				grandparent->color = parent->color;
-				parent->color = grandColor;
 			}
 			else if (!leftParent && !leftChild){ //RR
-				cout << "RR case" << endl;
 				root = rotateLeft(grandparent);
-				char grandColor = grandparent->color;
-				grandparent->color = parent->color;
-				parent->color = grandColor;
 			}
 			else if (!leftParent && leftChild){ //RL
-				cout << "RL case" << endl;
 				root = rotateRight(parent);
 				root = rotateLeft(grandparent);
-				char grandColor = grandparent->color;
+			}
+
+			//Overlapping color updates associated with each case
+			char grandColor = grandparent->color;
+			if (!(leftParent ^ leftChild)){
 				grandparent->color = parent->color;
 				parent->color = grandColor;
 			}
-		}
-		else{
-			cout << addedNode->parent->value << " has no sibling." << endl;
-			cout << "PROPERTY VIOLATION" << endl;
+			else{
+				grandparent->color = addedNode->color;
+				addedNode->color = grandColor;
+			}
 		}
 	}
 	
 }
-void addNode(node* &curr, node* &newNode, node* &root){
+void addNode(node* &curr, node* &newNode){
 	if (curr == nullptr){
 		newNode->color = 'B';
 		curr = newNode;
@@ -266,20 +267,20 @@ void addNode(node* &curr, node* &newNode, node* &root){
 			if (current->left == nullptr){
 				current->left = newNode;
 				newNode->parent = current;
-				update(root, newNode);
+				update(getRoot(curr), newNode);
 			}
 			else{
-				addNode(current->left, newNode, root);
+				addNode(current->left, newNode);
 			}
 		}
 		else{
 			if (current->right == nullptr){
 				current->right = newNode;
 				newNode->parent = current;
-				update(root, newNode);
+				update(getRoot(curr), newNode);
 			}
 			else{
-				addNode(current->right, newNode, root);
+				addNode(current->right, newNode);
 			}
 		}
 	}
